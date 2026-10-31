@@ -8,10 +8,18 @@ object BatteryCommands {
     const val STATUS_NOT_CHARGING = 4
     const val STATUS_FULL = 5
 
+    const val TEMP_MIN = -200
+    const val TEMP_MAX = 900
+
     fun setLevel(level: Int) = arrayOf("set", "level", level.coerceIn(0, 100).toString())
     fun setPlugged(source: PowerSource, plugged: Boolean) =
         arrayOf("set", source.key, if (plugged) "1" else "0")
     fun setStatus(status: Int) = arrayOf("set", "status", status.toString())
+    /** 온도는 0.1℃ 단위 (예: 250 = 25.0℃) */
+    fun setTemperature(tenthsCelsius: Int) =
+        arrayOf("set", "temp", tenthsCelsius.coerceIn(TEMP_MIN, TEMP_MAX).toString())
+    fun setPresent(present: Boolean) = arrayOf("set", "present", if (present) "1" else "0")
+    fun setInvalidCharger(invalid: Boolean) = arrayOf("set", "invalid", if (invalid) "1" else "0")
     fun unplug() = arrayOf("unplug")
     fun reset() = arrayOf("reset")
     fun dump() = emptyArray<String>()
@@ -25,6 +33,8 @@ object BatteryCommands {
                 "level" -> value in 0..100
                 "ac", "usb", "wireless" -> value == 0 || value == 1
                 "status" -> value in STATUS_UNKNOWN..STATUS_FULL
+                "temp" -> value in TEMP_MIN..TEMP_MAX
+                "present", "invalid" -> value == 0 || value == 1
                 else -> false
             }
         }
@@ -35,4 +45,5 @@ object BatteryCommands {
 enum class PowerSource(val key: String, val label: String) {
     AC("ac", "AC"),
     USB("usb", "USB"),
+    WIRELESS("wireless", "무선"),
 }

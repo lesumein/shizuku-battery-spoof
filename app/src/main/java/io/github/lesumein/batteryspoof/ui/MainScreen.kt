@@ -2,6 +2,8 @@ package io.github.lesumein.batteryspoof.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -96,6 +98,13 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                 onApplyStatus = vm::applyStatus,
                 onReset = vm::reset,
             )
+            AdvancedCard(
+                ui = ui,
+                enabled = shizuku.serviceStatus == ServiceStatus.CONNECTED && !ui.busy,
+                onApplyTemperature = vm::applyTemperature,
+                onApplyPresent = vm::applyPresent,
+                onApplyInvalidCharger = vm::applyInvalidCharger,
+            )
             ui.dumpsys?.let { DumpsysCard(it.raw) }
         }
     }
@@ -168,7 +177,7 @@ private fun BatteryCard(ui: UiState) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ControlCard(
     ui: UiState,
@@ -180,7 +189,7 @@ private fun ControlCard(
 ) {
     var level by rememberSaveable { mutableFloatStateOf((ui.battery.reportedLevel ?: 50).toFloat()) }
     var source by rememberSaveable { mutableStateOf(PowerSource.AC) }
-    val charging = ui.dumpsys?.let { it.acPowered == true || it.usbPowered == true }
+    val charging = ui.dumpsys?.let { it.acPowered == true || it.usbPowered == true || it.wirelessPowered == true }
         ?: (ui.battery.reportedPlugged != 0)
 
     SectionCard("표시 값 변경") {
@@ -237,7 +246,7 @@ private fun ControlCard(
         }
 
         Text("배터리 상태 직접 지정", style = MaterialTheme.typography.bodyLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(
                 BatteryCommands.STATUS_CHARGING,
                 BatteryCommands.STATUS_DISCHARGING,
@@ -263,6 +272,73 @@ private fun ControlCard(
                 contentColor = MaterialTheme.colorScheme.error,
             ),
         ) { Text("원래대로 복구 (reset)") }
+        Text(
+            "복구하면 이 화면에서 바꾼 모든 값(잔량, 충전, 상태, 온도 등)이 실제 값으로 돌아갑니다.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}
+
+@Composable
+private fun AdvancedCard(
+    ui: UiState,
+    enabled: Boolean,
+    onApplyTemperature: (Int) -> Unit,
+    onApplyPresent: (Boolean) -> Unit,
+    onApplyInvalidCharger: (Boolean) -> Unit,
+) {
+    // 슬라이더는 0.1℃ 단위 값을 그대로 다룬다.
+    var temp by rememberSaveable {
+        mutableFloatStateOf(
+            (ui.dumpsys?.temperature ?: ui.battery.temperatureC?.let { (it * 10).toInt() } ?: 250)
+                .coerceIn(BatteryCommands.TEMP_MIN, BatteryCommands.TEMP_MAX)
+                .toFloat()
+        )
+    }
+    var invalid by rememberSaveable { mutableStateOf(false) }
+    val present = ui.dumpsys?.present ?: true
+
+    SectionCard("추가 항목") {
+        Text(
+            "기기·Android 버전에 따라 지원되지 않는 항목이 있을 수 있습니다.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+
+        Text("온도: %.1f℃".format(temp.toInt() / 10f), style = MaterialTheme.typography.bodyLarge)
+        Slider(
+            value = temp,
+            onValueChange = { temp = (it / 5).toInt() * 5f },
+            valueRange = BatteryCommands.TEMP_MIN.toFloat()..BatteryCommands.TEMP_MAX.toFloat(),
+            enabled = enabled,
+        )
+        Button(
+            onClick = { onApplyTemperature(temp.toInt()) },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("온도 적용") }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("배터리 장착됨으로 표시", style = MaterialTheme.typography.bodyLarge)
+                Text("끄면 배터리가 없는 것처럼 표시 (set present)", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(checked = present, onCheckedChange = onApplyPresent, enabled = enabled)
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("충전기 비정상으로 표시", style = MaterialTheme.typography.bodyLarge)
+                Text("호환되지 않는 충전기 경고 (set invalid)", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(
+                checked = invalid,
+                onCheckedChange = {
+                    invalid = it
+                    onApplyInvalidCharger(it)
+                },
+                enabled = enabled,
+            )
+        }
     }
 }
 

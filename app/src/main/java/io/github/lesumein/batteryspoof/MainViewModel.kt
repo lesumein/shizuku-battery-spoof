@@ -79,6 +79,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun applyStatus(status: Int) =
         execute("상태를 ${BatteryReader.statusLabel(status)}(으)로 설정", listOf(BatteryCommands.setStatus(status)))
 
+    fun applyTemperature(tenthsCelsius: Int) = execute(
+        "온도를 %.1f℃ 로 설정".format(tenthsCelsius / 10f),
+        listOf(BatteryCommands.setTemperature(tenthsCelsius)),
+    )
+
+    fun applyPresent(present: Boolean) = execute(
+        if (present) "배터리 있음으로 표시" else "배터리 없음으로 표시",
+        listOf(BatteryCommands.setPresent(present)),
+    )
+
+    fun applyInvalidCharger(invalid: Boolean) = execute(
+        if (invalid) "충전기 비정상으로 표시" else "충전기 정상으로 표시",
+        listOf(BatteryCommands.setInvalidCharger(invalid)),
+    )
+
     fun reset() = execute("원래대로 복구", listOf(BatteryCommands.reset()))
 
     private fun refreshDumpsys() {
@@ -105,7 +120,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         .getOrElse { e -> "-1\n${e.message}" }
                     val code = out.substringBefore('\n').toIntOrNull() ?: -1
                     val body = out.substringAfter('\n', "").trim()
-                    if (code != 0) "dumpsys battery ${args.joinToString(" ")} 실패($code): $body" else null
+                    // 지원하지 않는 옵션이어도 종료 코드가 0 인 기기가 있어 출력도 확인한다.
+                    val unsupported = body.contains("Unknown", ignoreCase = true) ||
+                        body.contains("Bad value", ignoreCase = true)
+                    if (code != 0 || unsupported) "dumpsys battery ${args.joinToString(" ")} 실패($code): $body" else null
                 }
             }
             _ui.update { it.copy(busy = false, lastMessage = error ?: "$label 완료") }

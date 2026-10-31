@@ -11,10 +11,14 @@
   - **표시 값**: `ACTION_BATTERY_CHANGED` 브로드캐스트 (다른 앱·상태바가 보는 값)
   - `dumpsys battery` 원본 출력과 덮어쓰기 적용 여부
 - 잔량 슬라이더(0–100) + 적용 → `dumpsys battery set level <n>`
-- 충전 중 표시 토글 (AC / USB 선택)
-  - 켜기 → `dumpsys battery set ac|usb 1` (나머지는 0) + `set status 2`
+- 충전 중 표시 토글 (AC / USB / 무선 선택)
+  - 켜기 → `dumpsys battery set ac|usb|wireless 1` (나머지는 0) + `set status 2`
   - 끄기 → `dumpsys battery unplug` + `set status 3`
 - 배터리 상태 직접 지정 (충전 중 / 방전 중 / 충전 안 함 / 완충) → `dumpsys battery set status <n>`
+- 추가 항목 (기기·버전에 따라 미지원일 수 있음)
+  - 온도 → `dumpsys battery set temp <0.1℃ 단위>` (-20.0℃ ~ 90.0℃)
+  - 배터리 장착 여부 → `dumpsys battery set present <0|1>`
+  - 충전기 비정상 표시 → `dumpsys battery set invalid <0|1>`
 - **원래대로 복구** → `dumpsys battery reset`
 
 ## 동작 방식

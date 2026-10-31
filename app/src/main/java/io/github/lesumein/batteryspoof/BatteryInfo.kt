@@ -66,6 +66,9 @@ data class DumpsysBattery(
     val status: Int?,
     val acPowered: Boolean?,
     val usbPowered: Boolean?,
+    val wirelessPowered: Boolean?,
+    val present: Boolean?,
+    val temperature: Int?,
     val raw: String,
 ) {
     companion object {
@@ -80,6 +83,9 @@ data class DumpsysBattery(
                 status = value("status")?.toIntOrNull(),
                 acPowered = value("AC powered")?.toBooleanStrictOrNull(),
                 usbPowered = value("USB powered")?.toBooleanStrictOrNull(),
+                wirelessPowered = value("Wireless powered")?.toBooleanStrictOrNull(),
+                present = value("present")?.toBooleanStrictOrNull(),
+                temperature = value("temperature")?.toIntOrNull(),
                 raw = output.trim(),
             )
         }
