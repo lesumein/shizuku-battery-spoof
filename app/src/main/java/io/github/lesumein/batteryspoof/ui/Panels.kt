@@ -18,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -238,7 +239,13 @@ fun InfoPanel(ui: UiState) {
 }
 
 @Composable
-fun ShizukuPanel(state: ShizukuState, onRequestPermission: () -> Unit) {
+fun ShizukuPanel(
+    state: ShizukuState,
+    onRequestPermission: () -> Unit,
+    onOpenShizuku: () -> Unit,
+    onDownload: () -> Unit,
+    onOpenReleases: () -> Unit,
+) {
     PanelTitle("Shizuku 연결")
     Column(Modifier.padding(top = 8.dp)) {
         InfoRow(
@@ -251,6 +258,7 @@ fun ShizukuPanel(state: ShizukuState, onRequestPermission: () -> Unit) {
                 ShizukuStatus.GRANTED -> "권한 허용됨"
             },
         )
+        InfoRow("Shizuku 앱", if (state.managerInstalled) "설치됨" else "설치 안 됨")
         state.shizukuUid?.let { InfoRow("Shizuku 권한", uidLabel(it)) }
         InfoRow(
             "UserService 바인더",
@@ -264,6 +272,18 @@ fun ShizukuPanel(state: ShizukuState, onRequestPermission: () -> Unit) {
     if (state.status == ShizukuStatus.PERMISSION_REQUIRED) {
         Button(onClick = onRequestPermission, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
             Text("Shizuku 권한 요청", fontWeight = FontWeight.Bold)
+        }
+    }
+    if (state.managerInstalled) {
+        OutlinedButton(onClick = onOpenShizuku, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Text("Shizuku 앱 열기")
+        }
+    } else {
+        Button(onClick = onDownload, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Text("Shizuku 설치 (Play 스토어)", fontWeight = FontWeight.Bold)
+        }
+        OutlinedButton(onClick = onOpenReleases, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text("GitHub 에서 APK 받기")
         }
     }
     Text(

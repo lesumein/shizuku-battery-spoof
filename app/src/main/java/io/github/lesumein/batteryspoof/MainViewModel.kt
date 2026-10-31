@@ -26,7 +26,7 @@ data class UiState(
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    val shizuku = ShizukuManager(application.packageName)
+    val shizuku = ShizukuManager(application)
     val shizukuState: StateFlow<ShizukuState> get() = shizuku.state
 
     private val _ui = MutableStateFlow(UiState(battery = BatteryReader.read(application)))
@@ -54,6 +54,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun requestPermission() = shizuku.requestPermission()
+
+    fun openShizuku() {
+        val app = getApplication<Application>()
+        if (!ShizukuApp.open(app)) ShizukuApp.openDownload(app)
+    }
+
+    fun downloadShizuku() = ShizukuApp.openDownload(getApplication())
+
+    fun openShizukuReleases() = ShizukuApp.openReleases(getApplication())
 
     fun refreshAll() {
         shizuku.refresh()

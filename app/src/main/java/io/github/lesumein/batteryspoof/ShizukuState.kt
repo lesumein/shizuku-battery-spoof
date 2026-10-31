@@ -17,6 +17,8 @@ enum class ServiceStatus { DISCONNECTED, CONNECTING, CONNECTED }
 
 data class ShizukuState(
     val status: ShizukuStatus = ShizukuStatus.NOT_RUNNING,
+    /** Shizuku 매니저 앱 설치 여부 */
+    val managerInstalled: Boolean = false,
     val shizukuUid: Int? = null,
     val serviceStatus: ServiceStatus = ServiceStatus.DISCONNECTED,
     val serviceUid: Int? = null,

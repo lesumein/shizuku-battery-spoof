@@ -1,6 +1,7 @@
 package io.github.lesumein.batteryspoof
 
 import android.content.ComponentName
+import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
@@ -12,7 +13,9 @@ import kotlinx.coroutines.flow.update
 import rikka.shizuku.Shizuku
 
 /** Shizuku 바인더 상태, 권한, UserService 연결을 관리한다. */
-class ShizukuManager(private val packageName: String) {
+class ShizukuManager(private val context: Context) {
+
+    private val packageName = context.packageName
 
     private val _state = MutableStateFlow(ShizukuState())
     val state: StateFlow<ShizukuState> = _state.asStateFlow()
@@ -50,7 +53,7 @@ class ShizukuManager(private val packageName: String) {
     private val binderReceived = Shizuku.OnBinderReceivedListener { refresh() }
     private val binderDead = Shizuku.OnBinderDeadListener {
         service = null
-        _state.value = ShizukuState()
+        _state.value = ShizukuState(managerInstalled = ShizukuApp.isInstalled(context))
     }
     private val permissionResult =
         Shizuku.OnRequestPermissionResultListener { requestCode, _ ->
@@ -74,7 +77,8 @@ class ShizukuManager(private val packageName: String) {
     fun refresh() {
         val status = currentStatus()
         val uid = if (status == ShizukuStatus.NOT_RUNNING) null else runCatching { Shizuku.getUid() }.getOrNull()
-        _state.update { it.copy(status = status, shizukuUid = uid) }
+        val installed = ShizukuApp.isInstalled(context)
+        _state.update { it.copy(status = status, shizukuUid = uid, managerInstalled = installed) }
         if (status == ShizukuStatus.GRANTED) bindService()
     }
 

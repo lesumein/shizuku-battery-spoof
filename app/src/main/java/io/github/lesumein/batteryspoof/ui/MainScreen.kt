@@ -129,7 +129,13 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
             Spacer(Modifier.weight(1f))
 
             if (!ready) {
-                ConnectBanner(shizuku, onRequest = vm::requestPermission, onOpen = { panel = Panel.SHIZUKU })
+                ConnectBanner(
+                    shizuku,
+                    onRequest = vm::requestPermission,
+                    onOpenShizuku = vm::openShizuku,
+                    onDownload = vm::downloadShizuku,
+                    onDetails = { panel = Panel.SHIZUKU },
+                )
                 Spacer(Modifier.height(12.dp))
             }
 
@@ -166,7 +172,9 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                         ui, enabled, vm::applyTemperature, vm::applyPresent, vm::applyInvalidCharger,
                     )
                     Panel.INFO -> InfoPanel(ui)
-                    Panel.SHIZUKU -> ShizukuPanel(shizuku, vm::requestPermission)
+                    Panel.SHIZUKU -> ShizukuPanel(
+                        shizuku, vm::requestPermission, vm::openShizuku, vm::downloadShizuku, vm::openShizukuReleases,
+                    )
                 }
             }
         }
@@ -229,30 +237,43 @@ fun shizukuBadge(state: ShizukuState): Pair<Color, String> = when {
 }
 
 @Composable
-private fun ConnectBanner(state: ShizukuState, onRequest: () -> Unit, onOpen: () -> Unit) {
-    GlassPanel(Modifier.fillMaxWidth(), borderColor = LobbyColors.Amber.copy(alpha = 0.6f)) {
+private fun ConnectBanner(
+    state: ShizukuState,
+    onRequest: () -> Unit,
+    onOpenShizuku: () -> Unit,
+    onDownload: () -> Unit,
+    onDetails: () -> Unit,
+) {
+    GlassPanel(Modifier.fillMaxWidth(), borderColor = LobbyColors.Amber.copy(alpha = 0.6f), onClick = onDetails) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Shizuku 연결 필요", color = LobbyColors.Amber, fontWeight = FontWeight.Bold)
                 Text(
-                    when (state.status) {
-                        ShizukuStatus.NOT_RUNNING -> "Shizuku 앱을 설치하고 실행하세요."
-                        ShizukuStatus.TOO_OLD -> "Shizuku v11 이상이 필요합니다."
-                        ShizukuStatus.PERMISSION_REQUIRED -> "권한을 허용하면 바로 시작할 수 있어요."
-                        ShizukuStatus.PERMISSION_DENIED -> "Shizuku 앱에서 이 앱의 권한을 허용하세요."
-                        ShizukuStatus.GRANTED -> "서비스에 연결하는 중…"
+                    when {
+                        !state.managerInstalled && state.status == ShizukuStatus.NOT_RUNNING ->
+                            "Shizuku 가 설치되어 있지 않습니다."
+                        state.status == ShizukuStatus.NOT_RUNNING -> "Shizuku 앱에서 서비스를 시작하세요."
+                        state.status == ShizukuStatus.TOO_OLD -> "Shizuku v11 이상으로 업데이트하세요."
+                        state.status == ShizukuStatus.PERMISSION_REQUIRED -> "권한을 허용하면 바로 시작할 수 있어요."
+                        state.status == ShizukuStatus.PERMISSION_DENIED -> "Shizuku 앱에서 이 앱의 권한을 허용하세요."
+                        else -> "서비스에 연결하는 중…"
                     },
                     color = LobbyColors.TextDim,
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            if (state.status == ShizukuStatus.PERMISSION_REQUIRED) {
+            val action: Pair<String, () -> Unit>? = when {
+                state.status == ShizukuStatus.PERMISSION_REQUIRED -> "권한 요청" to onRequest
+                !state.managerInstalled && state.status == ShizukuStatus.NOT_RUNNING -> "설치" to onDownload
+                state.status == ShizukuStatus.TOO_OLD -> "업데이트" to onDownload
+                state.status == ShizukuStatus.GRANTED -> null
+                else -> "Shizuku 열기" to onOpenShizuku
+            }
+            action?.let { (label, onClick) ->
                 Button(
-                    onClick = onRequest,
+                    onClick = onClick,
                     colors = ButtonDefaults.buttonColors(containerColor = LobbyColors.Amber, contentColor = LobbyColors.Navy),
-                ) { Text("권한 요청", fontWeight = FontWeight.Bold) }
-            } else {
-                TextButton(onClick = onOpen) { Text("자세히") }
+                ) { Text(label, fontWeight = FontWeight.Bold) }
             }
         }
     }
