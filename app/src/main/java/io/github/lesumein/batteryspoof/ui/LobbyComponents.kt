@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -31,17 +32,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.PI
+import kotlin.math.sin
 
 /** 반투명 유리 질감 패널 */
 @Composable
@@ -91,8 +100,8 @@ fun levelColor(level: Int?): Color = when {
 }
 
 /**
- * 로비 중앙의 원형 배터리 게이지.
- * 표시 잔량을 큰 숫자와 호(arc)로, 실제 잔량을 안쪽의 가는 호로 보여 준다.
+ * 로비 중앙의 배터리 모양 게이지.
+ * 표시 잔량만큼 액체가 차오르고(물결 애니메이션), 실제 잔량은 점선 눈금으로 보여 준다.
  */
 @Composable
 fun BatteryCore(
@@ -102,99 +111,151 @@ fun BatteryCore(
     overridden: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val shown by animateFloatAsState((displayLevel ?: 0) / 100f, tween(700), label = "level")
-    val actual by animateFloatAsState((actualLevel ?: 0) / 100f, tween(700), label = "actual")
-    val spin = rememberInfiniteTransition(label = "spin")
-    val rotation by spin.animateFloat(
+    val shown by animateFloatAsState((displayLevel ?: 0) / 100f, tween(900), label = "level")
+    val actual by animateFloatAsState((actualLevel ?: 0) / 100f, tween(900), label = "actual")
+    val anim = rememberInfiniteTransition(label = "battery")
+    val phase by anim.animateFloat(
         initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(if (charging) 2400 else 9000, easing = LinearEasing)),
-        label = "rotation",
+        targetValue = (2 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(if (charging) 1100 else 2600, easing = LinearEasing)),
+        label = "wave",
+    )
+    val glow by anim.animateFloat(
+        initialValue = 0.12f,
+        targetValue = if (charging) 0.38f else 0.2f,
+        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Reverse),
+        label = "glow",
     )
     val color = levelColor(displayLevel)
+    val outline = Color.White.copy(alpha = 0.85f)
 
-    Box(modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val outer = size.minDimension
-            val stroke = outer * 0.06f
-            val inset = stroke / 2 + outer * 0.04f
-            val arcSize = Size(outer - inset * 2, outer - inset * 2)
-            val topLeft = Offset(inset, inset)
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.fillMaxWidth().aspectRatio(0.56f), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                val capH = h * 0.06f
+                val capW = w * 0.38f
+                val bodyTop = capH
+                val bodyH = h - capH
+                val stroke = w * 0.035f
+                val corner = CornerRadius(w * 0.14f)
 
-            // 은은한 후광
-            drawCircle(
-                brush = Brush.radialGradient(
-                    listOf(color.copy(alpha = 0.28f), Color.Transparent),
-                    radius = outer / 2,
-                ),
-                radius = outer / 2,
-            )
-            // 회전하는 점선 링
-            val dashes = 48
-            for (i in 0 until dashes) {
-                if (i % 2 == 1) continue
-                drawArc(
-                    color = LobbyColors.Cyan.copy(alpha = 0.35f),
-                    startAngle = rotation + i * (360f / dashes),
-                    sweepAngle = 360f / dashes * 0.6f,
-                    useCenter = false,
-                    topLeft = Offset(outer * 0.01f, outer * 0.01f),
-                    size = Size(outer * 0.98f, outer * 0.98f),
-                    style = Stroke(width = outer * 0.008f),
+                // 후광
+                drawRoundRect(
+                    color = color.copy(alpha = glow),
+                    topLeft = Offset(-w * 0.05f, bodyTop - w * 0.05f),
+                    size = Size(w * 1.1f, bodyH + w * 0.1f),
+                    cornerRadius = CornerRadius(w * 0.2f),
+                )
+                // 몸체 배경과 단자
+                drawRoundRect(Color(0xCC061118), Offset(0f, bodyTop), Size(w, bodyH), corner)
+                drawRoundRect(
+                    outline,
+                    Offset((w - capW) / 2, 0f),
+                    Size(capW, capH + stroke),
+                    CornerRadius(capH * 0.4f),
+                )
+
+                // 내용물 (안쪽 영역으로 잘라 그림)
+                val pad = stroke * 1.9f
+                val innerTop = bodyTop + pad
+                val innerBottom = h - pad
+                val innerH = innerBottom - innerTop
+                val inner = Path().apply {
+                    addRoundRect(RoundRect(pad, innerTop, w - pad, innerBottom, CornerRadius(w * 0.09f)))
+                }
+                clipPath(inner) {
+                    val surface = innerBottom - innerH * shown
+                    val amp = if (shown in 0.01f..0.99f) innerH * 0.014f else 0f
+                    val liquid = Path().apply {
+                        moveTo(0f, innerBottom)
+                        lineTo(0f, surface)
+                        val steps = 40
+                        for (i in 0..steps) {
+                            val x = w * i / steps
+                            lineTo(x, surface + amp * sin(i.toFloat() / steps * 2f * PI.toFloat() * 1.5f + phase))
+                        }
+                        lineTo(w, innerBottom)
+                        close()
+                    }
+                    drawPath(
+                        liquid,
+                        Brush.verticalGradient(
+                            listOf(color, color.copy(alpha = 0.45f)),
+                            startY = surface,
+                            endY = innerBottom,
+                        ),
+                    )
+                    // 5칸 눈금
+                    for (i in 1..4) {
+                        val y = innerTop + innerH * i / 5
+                        drawLine(Color.Black.copy(alpha = 0.3f), Offset(0f, y), Offset(w, y), strokeWidth = stroke * 0.4f)
+                    }
+                    // 실제 잔량 표시선
+                    if (actualLevel != null) {
+                        val y = innerBottom - innerH * actual
+                        drawLine(
+                            Color.White.copy(alpha = 0.9f),
+                            Offset(0f, y),
+                            Offset(w, y),
+                            strokeWidth = stroke * 0.35f,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(stroke, stroke * 0.8f)),
+                        )
+                    }
+                }
+
+                // 외곽선
+                drawRoundRect(
+                    outline,
+                    Offset(stroke / 2, bodyTop + stroke / 2),
+                    Size(w - stroke, bodyH - stroke),
+                    corner,
+                    style = Stroke(stroke),
                 )
             }
-            // 트랙
-            drawArc(
-                color = Color.White.copy(alpha = 0.08f),
-                startAngle = 135f, sweepAngle = 270f, useCenter = false,
-                topLeft = topLeft, size = arcSize,
-                style = Stroke(stroke, cap = StrokeCap.Round),
-            )
-            // 표시 잔량
-            drawArc(
-                brush = Brush.sweepGradient(listOf(LobbyColors.Cyan, color, LobbyColors.Cyan)),
-                startAngle = 135f, sweepAngle = 270f * shown, useCenter = false,
-                topLeft = topLeft, size = arcSize,
-                style = Stroke(stroke, cap = StrokeCap.Round),
-            )
-            // 실제 잔량 (안쪽 가는 호)
-            val innerInset = inset + stroke * 1.4f
-            drawArc(
-                color = Color.White.copy(alpha = 0.55f),
-                startAngle = 135f, sweepAngle = 270f * actual, useCenter = false,
-                topLeft = Offset(innerInset, innerInset),
-                size = Size(outer - innerInset * 2, outer - innerInset * 2),
-                style = Stroke(stroke * 0.25f, cap = StrokeCap.Round),
-            )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (charging) Text("⚡", fontSize = 26.sp, color = LobbyColors.Lime)
-            Text(
-                displayLevel?.toString() ?: "--",
-                fontSize = 64.sp,
-                fontWeight = FontWeight.Black,
-                color = Color.White,
-            )
-            Text("표시 잔량 %", style = MaterialTheme.typography.labelMedium, color = LobbyColors.TextDim)
-            Text(
-                "실제 ${actualLevel?.let { "$it%" } ?: "-"}",
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            if (overridden) {
-                Row(
-                    Modifier
-                        .padding(top = 8.dp)
-                        .background(LobbyColors.Amber.copy(alpha = 0.18f), RoundedCornerShape(50))
-                        .border(1.dp, LobbyColors.Amber.copy(alpha = 0.6f), RoundedCornerShape(50))
-                        .padding(horizontal = 10.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    GlowDot(LobbyColors.Amber, 7.dp, pulse = true)
-                    Text("OVERRIDE", color = LobbyColors.Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+            val shadow = Shadow(Color.Black.copy(alpha = 0.8f), blurRadius = 12f)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (charging) {
+                    Text("⚡", fontSize = 30.sp, color = Color.White, style = TextStyle(shadow = shadow))
                 }
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        displayLevel?.toString() ?: "--",
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White,
+                        style = TextStyle(shadow = shadow),
+                    )
+                    Text(
+                        "%",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        style = TextStyle(shadow = shadow),
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                }
+                Text(
+                    "실제 ${actualLevel?.let { "$it%" } ?: "-"}",
+                    style = MaterialTheme.typography.labelLarge.copy(shadow = shadow),
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+        }
+        if (overridden) {
+            Row(
+                Modifier
+                    .padding(top = 10.dp)
+                    .background(LobbyColors.Amber.copy(alpha = 0.18f), RoundedCornerShape(50))
+                    .border(1.dp, LobbyColors.Amber.copy(alpha = 0.6f), RoundedCornerShape(50))
+                    .padding(horizontal = 10.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                GlowDot(LobbyColors.Amber, 7.dp, pulse = true)
+                Text("OVERRIDE", color = LobbyColors.Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

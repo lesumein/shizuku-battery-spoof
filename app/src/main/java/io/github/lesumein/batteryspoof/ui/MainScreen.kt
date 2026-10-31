@@ -116,7 +116,7 @@ fun MainScreen(vm: MainViewModel = viewModel()) {
                 actualLevel = ui.battery.actualLevel,
                 charging = charging,
                 overridden = dump?.overridden == true,
-                modifier = Modifier.fillMaxWidth(0.72f).widthIn(max = 320.dp),
+                modifier = Modifier.fillMaxWidth(0.42f).widthIn(max = 200.dp),
             )
             Text(
                 "${BatteryReader.statusLabel(dump?.status ?: ui.battery.reportedStatus)} · " +
