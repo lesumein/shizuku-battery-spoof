@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "io.github.lesumein.batteryspoof"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "io.github.lesumein.batteryspoof"
