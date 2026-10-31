@@ -21,6 +21,15 @@
   - 충전기 비정상 표시 → `dumpsys battery set invalid <0|1>`
 - **원래대로 복구** → `dumpsys battery reset`
 
+## 화면 (로비형 UI)
+
+게임 로비처럼 한 화면에서 상태를 보고, 하단 메뉴 타일을 눌러 각 기능 패널(바텀시트)을 엽니다.
+
+- 배경: Gemini 이미지 모델(`gemini-3-pro-image`)로 생성한 에너지 코어 챔버 이미지 (`res/drawable-nodpi/lobby_bg.webp`)
+- 상단 HUD: Shizuku 연결 상태 배지(ONLINE / 권한 필요 / OFFLINE), 새로고침
+- 중앙 코어: 표시 잔량(바깥 호·큰 숫자)과 실제 잔량(안쪽 가는 호), 충전 시 빠르게 도는 링, 덮어쓰기 중이면 `OVERRIDE` 배지
+- 하단 메뉴: 잔량 · 충전 · 상태 · 온도·기타 · 정보 · 복구(확인 후 reset)
+
 ## 동작 방식
 
 명령은 [Shizuku UserService](https://github.com/RikkaApps/Shizuku-API#userservice)(AIDL)로 실행합니다.
@@ -31,7 +40,7 @@ UserService 쪽에서도 인자를 화이트리스트로 검증해 `dumpsys batt
 
 ## 빌드
 
-요구 사항: JDK 17 이상(21 권장), Android SDK (compileSdk 36)
+요구 사항: JDK 17 이상(21 권장), Android SDK (compileSdk 37)
 
 ```bash
 # ANDROID_HOME 을 설정하거나 local.properties 에 sdk.dir 을 지정
@@ -51,7 +60,7 @@ Actions 탭의 해당 실행에서 `app-debug` 아티팩트를 내려받을 수 
 | Gradle | 9.8.2 |
 | Compose BOM | 2026.09.00 |
 | Shizuku API | 13.1.5 |
-| minSdk / targetSdk | 26 / 36 |
+| minSdk / targetSdk / compileSdk | 26 / 36 / 37 |
 
 ## 사용법
 

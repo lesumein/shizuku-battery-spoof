@@ -1,3 +1,5 @@
 <resources>
-    <style name="Theme.BatterySpoof" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.BatterySpoof" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/lobby_navy</item>
+    </style>
 </resources>
